@@ -1,0 +1,462 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Hostel Cashbook</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;700&family=JetBrains+Mono:wght@500;700&display=swap">
+<style>[hidden]{display:none!important}body{margin:0}
+/* Layout: one-column phone ledger — date bar, day summary, entries, cash handovers, end-of-day close; month tab for totals */
+:root{
+  --bg:#EEF1F4; --surface:#FFFFFF; --ink:#18212C; --muted:#5E6B7A; --line:#D7DEE6;
+  --accent:#C77C0E; --accent-ink:#FFFFFF; --accent-soft:#F7E9D2;
+  --ok:#2C7A57; --ok-soft:#DDEFE5; --bad:#B8392F; --bad-soft:#F6DEDB; --warn:#9A6A00; --warn-soft:#F5ECCF;
+  --font:"IBM Plex Sans",system-ui,"Segoe UI",sans-serif; --num:"JetBrains Mono",ui-monospace,Menlo,monospace;
+  --r:12px;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#11161C; --surface:#1A222B; --ink:#E7ECF1; --muted:#93A1B0; --line:#2B3642;
+  --accent:#F0A63A; --accent-ink:#1A1206; --accent-soft:#3A2C14;
+  --ok:#5CC48F; --ok-soft:#173327; --bad:#F07A6E; --bad-soft:#3A1D1A; --warn:#E3B54A; --warn-soft:#33290F; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#11161C; --surface:#1A222B; --ink:#E7ECF1; --muted:#93A1B0; --line:#2B3642;
+  --accent:#F0A63A; --accent-ink:#1A1206; --accent-soft:#3A2C14;
+  --ok:#5CC48F; --ok-soft:#173327; --bad:#F07A6E; --bad-soft:#3A1D1A; --warn:#E3B54A; --warn-soft:#33290F; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--font);font-size:15px;line-height:1.6;direction:ltr}
+.wrap{max-width:640px;margin:0 auto;padding-inline:16px;padding-block:8px 80px;display:flex;flex-direction:column;gap:14px}
+.num{font-family:var(--num);font-variant-numeric:tabular-nums;direction:ltr;unicode-bidi:isolate}
+header.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);padding-block:8px;display:flex;flex-direction:column;gap:8px}
+.brand{display:flex;align-items:baseline;justify-content:space-between;gap:8px}
+.brand h1{font-size:19px;font-weight:800;margin:0;text-wrap:balance}
+.brand small{color:var(--muted);font-size:12px}
+.tabs{display:grid;grid-template-columns:1fr 1fr 1fr;background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:3px}
+.tabs button{border:0;background:none;color:var(--muted);font:inherit;font-weight:700;padding:7px 4px;border-radius:999px;cursor:pointer}
+.tabs button[aria-selected="true"]{background:var(--ink);color:var(--bg)}
+.datebar{display:flex;align-items:center;gap:8px}
+.datebar input{flex:1;min-width:0}
+button,input,select,textarea{font:inherit;color:inherit}
+.btn{border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:8px 12px;cursor:pointer;font-weight:600}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.ghost{background:none}
+.btn.danger{color:var(--bad);border-color:var(--bad)}
+.btn:focus-visible,input:focus-visible,select:focus-visible,.tabs button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+input,select,textarea{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:8px 10px;width:100%;min-width:0}
+input[type=number]{font-family:var(--num)}
+label{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--muted);font-weight:600;min-width:0}
+section.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px;display:flex;flex-direction:column;gap:12px}
+section.card>h2{margin:0;font-size:15px;font-weight:800;display:flex;align-items:center;justify-content:space-between;gap:8px}
+h2 .sub{font-size:12px;color:var(--muted);font-weight:500}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+@media (max-width:420px){.grid3{grid-template-columns:1fr 1fr}}
+.full{grid-column:1/-1}
+.summary{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.stat{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:10px 12px;display:flex;flex-direction:column;gap:2px;min-width:0}
+.stat .k{font-size:12px;color:var(--muted);font-weight:600}
+.stat .v{font-size:18px;font-weight:700}
+.stat.big{grid-column:1/-1;background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.stat.big .k{color:inherit;opacity:.75}
+.stat.big .v{font-size:24px}
+.pill{display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:700;padding:2px 10px;border-radius:999px;white-space:nowrap}
+.pill.ok{background:var(--ok-soft);color:var(--ok)}
+.pill.bad{background:var(--bad-soft);color:var(--bad)}
+.pill.open{background:var(--warn-soft);color:var(--warn)}
+.list{display:flex;flex-direction:column}
+.row{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center;padding-block:10px;border-top:1px solid var(--line)}
+.row:first-child{border-top:0}
+.row .who{min-width:0}
+.row .who b{display:block;font-weight:700;overflow-wrap:anywhere}
+.row .who span{font-size:12px;color:var(--muted)}
+.row .amt{text-align:right;display:flex;flex-direction:column;align-items:flex-end;gap:2px}
+.row .amt small{font-size:11px;color:var(--muted)}
+.chk{width:30px;height:30px;border-radius:8px;border:1.5px solid var(--line);background:none;cursor:pointer;display:grid;place-items:center;font-weight:800;color:transparent}
+.chk.on{background:var(--ok);border-color:var(--ok);color:var(--surface)}
+.tag{display:inline-block;font-size:11px;font-weight:700;padding:0 6px;border-radius:6px;background:var(--accent-soft);color:var(--accent);margin-inline-start:4px}
+.empty{color:var(--muted);font-size:13px;padding:6px 0}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chips button{border:1px solid var(--line);background:none;border-radius:999px;padding:4px 10px;font-size:13px;cursor:pointer}
+.chips button[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.recon{display:flex;flex-direction:column;gap:6px}
+.recon .line{display:flex;justify-content:space-between;gap:8px;font-size:14px}
+.recon .line.total{border-top:1px dashed var(--line);padding-top:6px;font-weight:700}
+.diff{font-weight:800}
+.diff.ok{color:var(--ok)} .diff.bad{color:var(--bad)}
+.actions{display:flex;gap:8px;flex-wrap:wrap}
+.bars{display:flex;flex-direction:column;gap:8px}
+.bar{display:grid;grid-template-columns:96px 1fr auto;gap:8px;align-items:center;font-size:13px}
+.bar .track{height:10px;background:var(--bg);border-radius:6px;overflow:hidden}
+.bar .fill{height:100%;background:var(--accent);border-radius:6px}
+.daylist .row{grid-template-columns:auto 1fr auto;cursor:pointer}
+.note{font-size:12px;color:var(--muted)}
+.banner{background:var(--warn-soft);color:var(--warn);border-radius:10px;padding:8px 12px;font-size:13px}
+.toast{position:fixed;inset-inline:16px;bottom:calc(16px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--bg);padding:10px 14px;border-radius:10px;font-size:14px;text-align:center;z-index:20}
+details summary{cursor:pointer;font-weight:700;font-size:13px;color:var(--muted)}
+@media (prefers-reduced-motion:no-preference){.fill{transition:width .3s}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div class="brand"><h1>Hostel Cashbook</h1><small id="who"></small></div>
+    <div class="tabs" role="tablist" id="tabs" hidden>
+      <button id="tabDay" role="tab" aria-selected="true">Day</button>
+      <button id="tabMonth" role="tab" aria-selected="false">Month</button>
+      <button id="tabSet" role="tab" aria-selected="false">Settings</button>
+    </div>
+  </header>
+
+  <!-- ===== LOGIN ===== -->
+  <section class="card" id="viewLogin" hidden>
+    <h2>Sign in</h2>
+    <form id="loginForm" class="grid2">
+      <label class="full">Username<input id="lUser" autocomplete="username" required></label>
+      <label class="full">Password<input id="lPass" type="password" autocomplete="current-password" required></label>
+      <div class="actions full"><button class="btn primary" type="submit">Sign in</button></div>
+    </form>
+    <p class="note" id="loginErr" hidden></p>
+  </section>
+
+  <!-- ===== DAY ===== -->
+  <div id="viewDay" hidden style="display:flex;flex-direction:column;gap:14px">
+    <div class="datebar">
+      <button class="btn" id="prevD" aria-label="Previous day">‹</button>
+      <input type="date" id="dateIn">
+      <button class="btn" id="nextD" aria-label="Next day">›</button>
+      <button class="btn ghost" id="todayBtn">Today</button>
+    </div>
+    <div class="summary" id="summary"></div>
+
+    <section class="card" id="formCard">
+      <h2><span id="formTitle">Record guest payment</span><button class="btn ghost" id="cancelEdit" hidden>Cancel edit</button></h2>
+      <div class="chips" id="chChips" aria-label="Channel"></div>
+      <div class="grid2">
+        <label class="full">Guest name<input id="fGuest" placeholder="e.g. Anna K."></label>
+        <label>Amount<input id="fAmount" type="number" inputmode="decimal" min="0" step="any"></label>
+        <label>Currency<select id="fCur"></select></label>
+        <label>Payment method<select id="fMethod"></select></label>
+        <label>Booking ref<input id="fRef" placeholder="OTA confirmation no."></label>
+        <label class="full">Note<input id="fNote" placeholder="e.g. 2 nights, bed 4"></label>
+      </div>
+      <label style="flex-direction:row;align-items:center;gap:8px;color:var(--ink)"><input type="checkbox" id="fAT" style="width:auto"> Also entered in the PMS (Airtable)</label>
+      <div class="actions" id="formActions"><button class="btn primary" id="saveEntry">Save</button></div>
+    </section>
+
+    <section class="card"><h2>Payments <span class="sub" id="entryCount"></span></h2><div class="list" id="entries"></div></section>
+
+    <section class="card">
+      <h2>Cash handed to manager <span class="sub">taken out of the drawer</span></h2>
+      <div class="grid3">
+        <label>Amount<input id="hAmount" type="number" inputmode="decimal" min="0" step="any"></label>
+        <label>Currency<select id="hCur"></select></label>
+        <label>Time<input id="hTime" type="time"></label>
+        <label class="full">Note<input id="hNote" placeholder="e.g. covers two days"></label>
+      </div>
+      <div class="actions"><button class="btn primary" id="saveHand">Record handover</button></div>
+      <div class="list" id="hands"></div>
+    </section>
+
+    <section class="card">
+      <h2>Cash expenses</h2>
+      <div class="grid3">
+        <label class="full">Description<input id="xDesc" placeholder="e.g. cleaning supplies"></label>
+        <label>Amount<input id="xAmount" type="number" inputmode="decimal" min="0" step="any"></label>
+        <label>Currency<select id="xCur"></select></label>
+        <div style="display:flex;align-items:flex-end"><button class="btn primary" id="saveExp" style="width:100%">Save</button></div>
+      </div>
+      <div class="list" id="exps"></div>
+    </section>
+
+    <section class="card">
+      <h2>Close the day <span id="dayStatus"></span></h2>
+      <p class="note" style="margin:0">Enter the opening float and the end-of-day count per currency, the POS Z-report total and the PMS total. Then save to see the differences.</p>
+      <div id="closeGrid" class="grid3"></div>
+      <div class="grid2">
+        <label><span>POS Z-report total (<span class="baseCur"></span>)</span><input id="cTerminal" type="number" inputmode="decimal" step="any"></label>
+        <label><span>Total entered in PMS (<span class="baseCur"></span>)</span><input id="cPms" type="number" inputmode="decimal" step="any"></label>
+        <label class="full">Day note<textarea id="cNote" rows="2"></textarea></label>
+      </div>
+      <div class="actions"><button class="btn primary" id="saveClose">Save close</button></div>
+      <div class="recon" id="recon"></div>
+    </section>
+  </div>
+
+  <!-- ===== MONTH ===== -->
+  <div id="viewMonth" hidden style="display:flex;flex-direction:column;gap:14px">
+    <div class="datebar">
+      <button class="btn" id="prevM" aria-label="Previous month">‹</button>
+      <input type="month" id="monthIn">
+      <button class="btn" id="nextM" aria-label="Next month">›</button>
+    </div>
+    <div class="summary" id="mSummary"></div>
+    <section class="card"><h2>By channel</h2><div class="bars" id="mChannels"></div></section>
+    <section class="card"><h2>By payment method</h2><div class="bars" id="mMethods"></div></section>
+    <section class="card"><h2>Cash handed to manager <span class="sub" id="mHandSum"></span></h2><div class="list" id="mHands"></div></section>
+    <section class="card"><h2>Days <span class="sub">tap to open</span></h2><div class="list daylist" id="mDays"></div></section>
+    <section class="card"><h2>Export for the accountant</h2><div class="actions"><button class="btn" id="csvBtn">Download CSV</button></div></section>
+  </div>
+
+  <!-- ===== SETTINGS ===== -->
+  <div id="viewSet" hidden style="display:flex;flex-direction:column;gap:14px">
+    <section class="card">
+      <h2>Exchange rates <span class="sub" id="rateNote"></span></h2>
+      <p class="note" style="margin:0">Each payment keeps the rate it was recorded with, so changing a rate never rewrites past days.</p>
+      <div class="grid3" id="rateGrid"></div>
+      <div class="actions"><button class="btn primary" id="saveRates">Save rates</button></div>
+    </section>
+    <section class="card">
+      <h2>Payment methods</h2>
+      <div class="recon note">
+        <div><b>Cash:</b> goes into the drawer and is checked against the end-of-day count.</div>
+        <div><b>Card:</b> checked against the POS Z-report.</div>
+        <div><b>OTA prepaid:</b> collected by the booking site and paid out later. Counted in totals and the PMS check, not in the drawer.</div>
+        <div><b>Bank / Idram:</b> paid straight to the account. Never touches the drawer.</div>
+      </div>
+    </section>
+    <section class="card"><h2>Account</h2><div class="actions"><button class="btn" id="logout">Sign out</button></div></section>
+  </div>
+</div>
+<div class="toast" id="toast" hidden></div>
+
+<script>
+const METHOD_LABEL = { cash: "Cash", card: "Card (POS)", ota: "OTA prepaid", bank: "Bank / Idram" };
+const $ = id => document.getElementById(id);
+const fmt = n => (Math.round((+n || 0) * 100) / 100).toLocaleString("en-US");
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const todayStr = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; };
+const addDays = (s, n) => { const d = new Date(s + "T12:00:00"); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10); };
+const addMonth = (ym, n) => { let [y, m] = ym.split("-").map(Number); m += n; while (m < 1) { m += 12; y--; } while (m > 12) { m -= 12; y++; } return `${y}-${String(m).padStart(2, "0")}`; };
+
+let meta = null, me = null, day = null, curDate = todayStr(), channel = null, editId = null;
+
+function toast(m) { const t = $("toast"); t.textContent = m; t.hidden = false; clearTimeout(toast.t); toast.t = setTimeout(() => t.hidden = true, 2600); }
+
+/* ---------- API client ---------- */
+const store = { get token() { try { return localStorage.getItem("token"); } catch { return null; } },
+  set token(v) { try { v ? localStorage.setItem("token", v) : localStorage.removeItem("token"); } catch {} } };
+
+async function api(path, opts = {}) {
+  const headers = { ...(opts.headers || {}) };
+  if (store.token) headers.Authorization = "Bearer " + store.token;
+  if (opts.json !== undefined) { headers["Content-Type"] = "application/json"; opts.body = JSON.stringify(opts.json); }
+  const res = await fetch("/api" + path, { ...opts, headers });
+  if (res.status === 401 && !path.startsWith("/auth/token")) { store.token = null; showLogin(); throw new Error("Please sign in again."); }
+  if (!res.ok) {
+    let msg = `Request failed (${res.status}).`;
+    try { const j = await res.json(); msg = typeof j.detail === "string" ? j.detail : (j.detail?.[0]?.msg || msg); } catch {}
+    throw new Error(msg);
+  }
+  return res.status === 204 ? null : res;
+}
+const getJSON = async (p) => (await api(p)).json();
+const send = async (p, method, json) => { const r = await api(p, { method, json }); return r ? r.json() : null; };
+const guard = fn => async (...a) => { try { await fn(...a); } catch (e) { toast(e.message); } };
+
+/* ---------- views ---------- */
+function showView(v) {
+  for (const id of ["viewLogin", "viewDay", "viewMonth", "viewSet"]) $(id).hidden = id !== v;
+  $("tabs").hidden = v === "viewLogin";
+  for (const [t, id] of [["tabDay", "viewDay"], ["tabMonth", "viewMonth"], ["tabSet", "viewSet"]]) $(t).setAttribute("aria-selected", id === v);
+}
+function showLogin() { $("who").textContent = ""; showView("viewLogin"); }
+
+$("loginForm").addEventListener("submit", async e => {
+  e.preventDefault();
+  const body = new URLSearchParams({ username: $("lUser").value, password: $("lPass").value });
+  try {
+    const r = await api("/auth/token", { method: "POST", body, headers: { "Content-Type": "application/x-www-form-urlencoded" } });
+    store.token = (await r.json()).access_token; $("lPass").value = ""; $("loginErr").hidden = true; await boot();
+  } catch (err) { $("loginErr").textContent = err.message; $("loginErr").hidden = false; }
+});
+$("logout").onclick = () => { store.token = null; showLogin(); };
+
+/* ---------- day ---------- */
+const pill = s => s === "balanced" ? '<span class="pill ok">✓ Balanced</span>' : s === "mismatch" ? '<span class="pill bad">Mismatch</span>' : '<span class="pill open">Not closed</span>';
+const diffHtml = v => v === null || v === undefined ? '<span class="note">—</span>' : `<span class="diff num ${Math.abs(v) < 1 ? "ok" : "bad"}">${v > 0 ? "+" : ""}${fmt(v)}</span>`;
+
+const loadDay = guard(async d => {
+  curDate = d; $("dateIn").value = d;
+  day = await getJSON("/days/" + d);
+  renderDay();
+});
+
+function renderDay() {
+  const r = day.reconciliation, base = meta.base_currency;
+  $("summary").innerHTML = `<div class="stat big"><span class="k">Total received (${base})</span><span class="v num">${fmt(r.total_base)}</span></div>` +
+    meta.methods.map(m => `<div class="stat"><span class="k">${METHOD_LABEL[m]}</span><span class="v num">${fmt(r.by_method[m] || 0)}</span></div>`).join("");
+  $("entryCount").textContent = day.entries.length ? `${day.entries.length} · ${r.missing_in_pms ? r.missing_in_pms + " not in PMS yet" : "all in PMS"}` : "";
+  $("entries").innerHTML = day.entries.length ? day.entries.slice().reverse().map(e => `
+    <div class="row">
+      <button class="chk ${e.in_pms ? "on" : ""}" data-pms="${e.id}" aria-label="Entered in PMS" title="Entered in PMS">✓</button>
+      <div class="who" data-edit="${e.id}" style="cursor:pointer"><b>${esc(e.guest) || "No name"}</b><span>${esc(e.channel)} · ${METHOD_LABEL[e.method]}${e.booking_ref ? " · " + esc(e.booking_ref) : ""}${e.note ? " · " + esc(e.note) : ""}</span></div>
+      <div class="amt"><span class="num">${fmt(e.amount)} ${e.currency}</span>${e.currency !== base ? `<small class="num">≈ ${fmt(e.base_amount)} ${base}</small>` : ""}</div>
+    </div>`).join("") : '<div class="empty">No payments recorded for this day. Pick a channel above and enter the amount.</div>';
+
+  const isMgr = me.role === "manager";
+  $("hands").innerHTML = day.handovers.length ? day.handovers.map(h => `
+    <div class="row"><span class="tag">${esc(h.time || "—")}</span>
+      <div class="who"><b>Handed to manager ${h.confirmed ? '<span class="pill ok">received</span>' : '<span class="pill open">awaiting confirmation</span>'}</b><span>${esc(h.note)}</span></div>
+      <div class="amt"><span class="num">${fmt(h.amount)} ${h.currency}</span>
+        <span class="actions">${isMgr && !h.confirmed ? `<button class="btn" style="padding:2px 8px;font-size:12px" data-confirm="${h.id}">Confirm received</button>` : ""}
+        ${!h.confirmed || isMgr ? `<button class="btn ghost danger" style="padding:2px 8px;font-size:12px" data-delh="${h.id}">Delete</button>` : ""}</span></div>
+    </div>`).join("") : '<div class="empty">No cash handed over today.</div>';
+
+  $("exps").innerHTML = day.expenses.length ? day.expenses.map(x => `
+    <div class="row"><span></span><div class="who"><b>${esc(x.description) || "Expense"}</b></div>
+    <div class="amt"><span class="num">${fmt(x.amount)} ${x.currency}</span><button class="btn ghost danger" style="padding:2px 8px;font-size:12px" data-delx="${x.id}">Delete</button></div></div>`).join("") : '<div class="empty">No cash expenses.</div>';
+
+  // close-of-day form
+  const cash = r.cash, sug = day.suggested_opening;
+  $("closeGrid").innerHTML = cash.map(c => {
+    const hasOpening = c.counted !== null || c.opening !== 0;
+    const op = hasOpening ? c.opening : (sug[c.currency] ?? "");
+    return `<label>Opening ${c.currency}<input type="number" step="any" id="op_${c.currency}" value="${op}"></label>
+      <label>Counted ${c.currency}<input type="number" step="any" id="ct_${c.currency}" value="${c.counted ?? ""}"></label>
+      <div class="stat" style="padding:6px 10px"><span class="k">Expected ${c.currency}</span><span class="v num" style="font-size:15px">${fmt(c.expected)}</span></div>`;
+  }).join("");
+  $("cTerminal").value = r.card_terminal ?? ""; $("cPms").value = r.pms_total ?? ""; $("cNote").value = day.close_note || "";
+  $("dayStatus").innerHTML = pill(r.status);
+  $("recon").innerHTML =
+    cash.map(c => `<div class="line"><span>Cash drawer ${c.currency}: counted − expected</span>${diffHtml(c.difference)}</div>`).join("") +
+    `<div class="line"><span>Card: Z-report − recorded (<span class="num">${fmt(r.card_recorded)}</span>)</span>${diffHtml(r.card_difference)}</div>` +
+    `<div class="line"><span>PMS total − recorded (<span class="num">${fmt(r.total_base)}</span>)</span>${diffHtml(r.pms_difference)}</div>` +
+    `<div class="line total"><span>Payments not marked as in PMS</span><span class="diff num ${r.missing_in_pms ? "bad" : "ok"}">${r.missing_in_pms}</span></div>`;
+}
+
+/* ---------- entry form ---------- */
+function renderChips() { $("chChips").innerHTML = meta.channels.map(c => `<button aria-pressed="${c === channel}" data-ch="${esc(c)}">${esc(c)}</button>`).join(""); }
+$("chChips").onclick = e => { const b = e.target.closest("[data-ch]"); if (b) { channel = b.dataset.ch; renderChips(); } };
+
+function clearForm() {
+  editId = null; ["fGuest", "fAmount", "fRef", "fNote"].forEach(i => $(i).value = ""); $("fAT").checked = false;
+  $("formTitle").textContent = "Record guest payment"; $("saveEntry").textContent = "Save"; $("cancelEdit").hidden = true; $("delEntry")?.remove();
+}
+$("cancelEdit").onclick = clearForm;
+
+$("saveEntry").onclick = guard(async () => {
+  const amount = parseFloat($("fAmount").value);
+  if (!(amount > 0)) { $("fAmount").focus(); throw new Error("Enter the amount."); }
+  const body = { guest: $("fGuest").value.trim(), channel, method: $("fMethod").value, amount, currency: $("fCur").value,
+    booking_ref: $("fRef").value.trim(), note: $("fNote").value.trim(), in_pms: $("fAT").checked };
+  if (editId) await send("/entries/" + editId, "PATCH", body); else await send("/entries", "POST", { ...body, day: curDate });
+  toast(editId ? "Payment updated" : "Payment saved"); clearForm(); await loadDay(curDate);
+});
+
+$("entries").onclick = guard(async e => {
+  const p = e.target.closest("[data-pms]");
+  if (p) { const x = day.entries.find(z => z.id == p.dataset.pms); await send("/entries/" + x.id, "PATCH", { in_pms: !x.in_pms }); return loadDay(curDate); }
+  const ed = e.target.closest("[data-edit]"); if (!ed) return;
+  const x = day.entries.find(z => z.id == ed.dataset.edit); if (!x) return;
+  editId = x.id; channel = x.channel; renderChips();
+  $("fGuest").value = x.guest; $("fAmount").value = x.amount; $("fCur").value = x.currency; $("fMethod").value = x.method;
+  $("fRef").value = x.booking_ref; $("fNote").value = x.note; $("fAT").checked = x.in_pms;
+  $("formTitle").textContent = "Edit payment"; $("saveEntry").textContent = "Save changes"; $("cancelEdit").hidden = false;
+  if (!$("delEntry")) {
+    const b = document.createElement("button"); b.className = "btn danger"; b.id = "delEntry"; b.textContent = "Delete payment";
+    b.onclick = guard(async () => {
+      if (b.dataset.sure !== "1") { b.dataset.sure = "1"; b.textContent = "Tap again to delete"; return; }
+      await send("/entries/" + editId, "DELETE"); clearForm(); toast("Payment deleted"); await loadDay(curDate);
+    });
+    $("formActions").appendChild(b);
+  }
+  $("formCard").scrollIntoView({ behavior: "smooth", block: "start" });
+});
+
+/* ---------- handovers & expenses ---------- */
+$("saveHand").onclick = guard(async () => {
+  const amount = parseFloat($("hAmount").value); if (!(amount > 0)) throw new Error("Enter the amount handed over.");
+  const now = new Date(), time = $("hTime").value || `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+  await send("/handovers", "POST", { day: curDate, amount, currency: $("hCur").value, time, note: $("hNote").value.trim() });
+  $("hAmount").value = $("hNote").value = $("hTime").value = ""; toast("Handover recorded"); await loadDay(curDate);
+});
+$("hands").onclick = guard(async e => {
+  const c = e.target.closest("[data-confirm]");
+  if (c) { await send(`/handovers/${c.dataset.confirm}/confirm`, "POST"); toast("Marked as received"); return loadDay(curDate); }
+  const b = e.target.closest("[data-delh]"); if (!b) return;
+  if (b.dataset.sure !== "1") { b.dataset.sure = "1"; b.textContent = "Sure?"; return; }
+  await send("/handovers/" + b.dataset.delh, "DELETE"); await loadDay(curDate);
+});
+$("saveExp").onclick = guard(async () => {
+  const amount = parseFloat($("xAmount").value); if (!(amount > 0)) throw new Error("Enter the expense amount.");
+  await send("/expenses", "POST", { day: curDate, description: $("xDesc").value.trim(), amount, currency: $("xCur").value });
+  $("xAmount").value = $("xDesc").value = ""; toast("Expense saved"); await loadDay(curDate);
+});
+$("exps").onclick = guard(async e => {
+  const b = e.target.closest("[data-delx]"); if (!b) return;
+  if (b.dataset.sure !== "1") { b.dataset.sure = "1"; b.textContent = "Sure?"; return; }
+  await send("/expenses/" + b.dataset.delx, "DELETE"); await loadDay(curDate);
+});
+
+/* ---------- close ---------- */
+const numOrNull = v => v === "" ? null : parseFloat(v);
+$("saveClose").onclick = guard(async () => {
+  const cash = day.reconciliation.cash.map(c => ({ currency: c.currency, opening: numOrNull($("op_" + c.currency).value), counted: numOrNull($("ct_" + c.currency).value) }));
+  day = await send(`/days/${curDate}/close`, "PUT", { terminal_total: numOrNull($("cTerminal").value), pms_total: numOrNull($("cPms").value), note: $("cNote").value, cash });
+  renderDay(); toast(day.reconciliation.status === "balanced" ? "Day balanced ✓" : "Saved. Check the differences below.");
+});
+
+/* ---------- navigation ---------- */
+$("dateIn").onchange = () => $("dateIn").value && loadDay($("dateIn").value);
+$("prevD").onclick = () => loadDay(addDays(curDate, -1));
+$("nextD").onclick = () => loadDay(addDays(curDate, 1));
+$("todayBtn").onclick = () => loadDay(todayStr());
+$("tabDay").onclick = () => { showView("viewDay"); loadDay(curDate); };
+$("tabMonth").onclick = () => { showView("viewMonth"); loadMonth($("monthIn").value || curDate.slice(0, 7)); };
+$("tabSet").onclick = () => { showView("viewSet"); loadRates(); };
+
+/* ---------- month ---------- */
+function bars(obj, labels) {
+  const ent = Object.entries(obj).filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1]); const max = Math.max(1, ...ent.map(e => e[1]));
+  return ent.length ? ent.map(([k, v]) => `<div class="bar"><span>${esc(labels ? labels[k] : k)}</span><div class="track"><div class="fill" style="width:${(v / max * 100).toFixed(1)}%"></div></div><span class="num">${fmt(v)}</span></div>`).join("") : '<div class="empty">No data for this month yet.</div>';
+}
+const loadMonth = guard(async ym => {
+  $("monthIn").value = ym;
+  const m = await getJSON("/reports/monthly?month=" + ym), base = meta.base_currency;
+  const ok = m.days.filter(d => d.status === "balanced").length, bad = m.days.filter(d => d.status === "mismatch").length;
+  $("mSummary").innerHTML = `<div class="stat big"><span class="k">Month total (${base}) · ${m.entries} payments</span><span class="v num">${fmt(m.total_base)}</span></div>
+    <div class="stat"><span class="k">Balanced days</span><span class="v num" style="color:var(--ok)">${ok}</span></div>
+    <div class="stat"><span class="k">Days with a mismatch</span><span class="v num" style="color:var(--bad)">${bad}</span></div>`;
+  $("mChannels").innerHTML = bars(m.by_channel); $("mMethods").innerHTML = bars(m.by_method, METHOD_LABEL);
+  $("mHandSum").innerHTML = Object.entries(m.handovers_by_currency).map(([k, v]) => `<span class="num">${fmt(v)} ${k}</span>`).join(" + ");
+  $("mHands").innerHTML = m.handovers.length ? m.handovers.map(h => `<div class="row"><span class="tag num">${h.day.slice(5)}</span><div class="who"><b>${h.confirmed ? "Received" : "Awaiting confirmation"}</b><span>${esc(h.time)}${h.note ? " · " + esc(h.note) : ""}</span></div><div class="amt"><span class="num">${fmt(h.amount)} ${h.currency}</span></div></div>`).join("") : '<div class="empty">No handovers this month.</div>';
+  $("mDays").innerHTML = m.days.length ? m.days.map(d => `<div class="row" data-day="${d.day}"><span class="tag num">${d.day.slice(5)}</span><div class="who"><b class="num">${fmt(d.total_base)} ${base}</b><span>${esc(d.issues.join(" · ")) || d.entries + " payments"}</span></div>${pill(d.status)}</div>`).join("") : '<div class="empty">No days recorded this month.</div>';
+});
+$("monthIn").onchange = () => $("monthIn").value && loadMonth($("monthIn").value);
+$("prevM").onclick = () => loadMonth(addMonth($("monthIn").value, -1));
+$("nextM").onclick = () => loadMonth(addMonth($("monthIn").value, 1));
+$("mDays").onclick = e => { const r = e.target.closest("[data-day]"); if (r) { showView("viewDay"); loadDay(r.dataset.day); window.scrollTo(0, 0); } };
+$("csvBtn").onclick = guard(async () => {
+  const blob = await (await api("/reports/monthly.csv?month=" + $("monthIn").value)).blob();
+  const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = `cashbook-${$("monthIn").value}.csv`; a.click(); URL.revokeObjectURL(a.href);
+});
+
+/* ---------- rates ---------- */
+const loadRates = guard(async () => {
+  const rates = await getJSON("/rates"), map = Object.fromEntries(rates.map(r => [r.currency, r.base_per_unit]));
+  const isMgr = me.role === "manager";
+  $("rateGrid").innerHTML = meta.currencies.filter(c => c !== meta.base_currency).map(c => `<label>1 ${c} = ${meta.base_currency}<input type="number" step="any" id="rate_${c}" value="${map[c] ?? ""}" ${isMgr ? "" : "disabled"}></label>`).join("");
+  $("saveRates").hidden = !isMgr; $("rateNote").textContent = isMgr ? "" : "only a manager can change rates";
+});
+$("saveRates").onclick = guard(async () => {
+  const body = meta.currencies.filter(c => c !== meta.base_currency && $("rate_" + c).value).map(c => ({ currency: c, base_per_unit: parseFloat($("rate_" + c).value) }));
+  await send("/rates", "PUT", body); toast("Rates saved");
+});
+
+/* ---------- boot ---------- */
+async function boot() {
+  try { me = await getJSON("/auth/me"); } catch { return showLogin(); }
+  meta = meta || await getJSON("/meta");
+  channel = channel || meta.channels[0];
+  $("who").textContent = `${me.full_name || me.username} · ${me.role}`;
+  document.querySelectorAll(".baseCur").forEach(el => el.textContent = meta.base_currency);
+  const opts = meta.currencies.map(c => `<option>${c}</option>`).join("");
+  ["fCur", "hCur", "xCur"].forEach(i => $(i).innerHTML = opts);
+  $("fMethod").innerHTML = meta.methods.map(m => `<option value="${m}">${METHOD_LABEL[m]}</option>`).join("");
+  $("monthIn").value = curDate.slice(0, 7);
+  renderChips(); showView("viewDay"); await loadDay(curDate);
+}
+store.token ? boot() : showLogin();
+</script>
+</body>
+</html>

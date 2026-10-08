@@ -1,0 +1,27 @@
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: cashbook
+      POSTGRES_USER: cashbook
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-cashbook}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cashbook"]
+      interval: 5s
+      retries: 10
+
+  api:
+    build: .
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql+psycopg://cashbook:${POSTGRES_PASSWORD:-cashbook}@db:5432/cashbook
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env}
+    ports:
+      - "8000:8000"
+
+volumes:
+  pgdata:
